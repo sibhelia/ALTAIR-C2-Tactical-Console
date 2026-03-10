@@ -7,35 +7,24 @@ from ui_main import MainWindow
 
 def main():
     app = QApplication(sys.argv)
-    
-    # Koyu Tema Uygulaması (Global Qt Stil)
     app.setStyle("Fusion")
     
-    # 1. Çekirdek Sistemleri Başlat
     logger = SystemLogger()
     turret_system = TurretSystem(logger)
-    
-    # 2. Ana Arayüzü Başlat
     window = MainWindow(turret_system)
     
-    # 3. Video / Görüntü İşleme İş Parçacığını (QThread) Başlat
     video_thread = VideoThread(turret_system)
     
-    # Sinyalleri arayüze bağla
-    video_thread.change_pixmap_signal.connect(window.update_image)
-    video_thread.target_detected_signal.connect(window.handle_target_detected)
+    # Yeni Sinyal Bağlantıları
+    video_thread.change_pixmap_signal.connect(window.update_frame)
+    video_thread.target_detected_signal.connect(window.handle_target)
     
-    # Thread'i çalıştır
     video_thread.start()
     
-    # Log Başlangıcı
-    logger.log("ALTAIR Taktik Konsolu Başlatıldı.", "SYSTEM")
-    logger.log("Video Akışı Bekleniyor...", "INFO")
+    logger.log("ALTAIR-C2 Mimari v2.0 Başlatıldı.", "SYSTEM")
+    logger.log("Haberleşme: ASENKRON (Hedef < 50ms Gecikme)", "INFO")
     
-    # Pencereyi göster
     window.show()
-    
-    # Çıkış işlemi
     sys.exit(app.exec())
 
 if __name__ == "__main__":
