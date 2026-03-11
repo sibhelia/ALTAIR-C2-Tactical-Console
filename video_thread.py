@@ -19,8 +19,9 @@ class VideoThread(QThread):
 
     def _init_mock_targets(self):
         self.mock_targets = [
-            {"id": 1, "class": "İHA", "x": 100, "y": 100, "w": 40, "h": 40, "dx": 3, "dy": 2, "dist": 40.0},
-            {"id": 2, "class": "F16", "x": 400, "y": 300, "w": 60, "h": 30, "dx": -4, "dy": -1.5, "dist": 25.0}
+            {"id": 1, "class": "İHA", "x": 100, "y": 100, "w": 40, "h": 40, "dx": 3, "dy": 2, "dist": 40.0, "type": "enemy"},
+            {"id": 2, "class": "F16-JET", "x": 400, "y": 300, "w": 60, "h": 30, "dx": -4, "dy": -1.5, "dist": 25.0, "type": "enemy"},
+            {"id": 3, "class": "DOST-İHA", "x": 50, "y": 350, "w": 45, "h": 25, "dx": 2, "dy": -2, "dist": 60.0, "type": "friendly"}
         ]
 
     def run(self):
@@ -80,29 +81,71 @@ class VideoThread(QThread):
         h, w, ch = cv_img.shape
         cx, cy = w // 2, h // 2
 
-        # Yasak Alanlar
+        # 1. Sinematik Arka Plan Maskesi (Vignette & Grid)
+        overlay = cv_img.copy()
+        for i in range(0, w, 60): cv2.line(overlay, (i, 0), (i, h), (10, 40, 10), 1)
+        for i in range(0, h, 60): cv2.line(overlay, (0, i), (w, i), (10, 40, 10), 1)
+        cv_img = cv2.addWeighted(overlay, 0.4, cv_img, 0.6, 0)
+
+        # 2. Yasak Alanlar
         for zone, z_type in self.turret_system.state.no_go_zones:
             color = (0, 0, 255) if z_type == ZoneType.NO_MOVEMENT else (255, 0, 0)
-            label = "NO-MOVE" if z_type == ZoneType.NO_MOVEMENT else "NO-FIRE"
+            label = "NO-MOVE ZONE" if z_type == ZoneType.NO_MOVEMENT else "NO-FIRE ZONE"
+            
+            # Yarı saydam yasak alan doldurma
+            blk = np.zeros(cv_img.shape, np.uint8)
+            cv2.rectangle(blk, (zone.x(), zone.y()), (zone.x() + zone.width(), zone.y() + zone.height()), color, cv2.FILLED)
+            cv_img = cv2.addWeighted(cv_img, 1.0, blk, 0.2, 1)
+            
             cv2.rectangle(cv_img, (zone.x(), zone.y()), (zone.x() + zone.width(), zone.y() + zone.height()), color, 2)
-            cv2.putText(cv_img, label, (zone.x(), zone.y() - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
+            cv2.putText(cv_img, label, (zone.x() + 5, zone.y() + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
 
-        # Hedefler
+        # 3. Hedefler (DANGER / FRIENDLY Vurgusu)
         for t in self.mock_targets:
             tx, ty, tw, th = int(t["x"]), int(t["y"]), t["w"], t["h"]
             no_fire, no_move = self.turret_system.check_zones(tx, ty, tw, th)
             
-            color = (0, 255, 255)
-            if no_move: color = (0, 0, 255)
-            elif no_fire: color = (255, 0, 0)
+            is_friendly = t.get("type") == "friendly"
             
-            cv2.rectangle(cv_img, (tx, ty), (tx + tw, ty + th), color, 2)
-            info = f"[{t['class']}] ID:{t['id']} {t['dist']:.1f}m"
-            cv2.putText(cv_img, info, (tx, ty - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            # Renk belirleme
+            if is_friendly:
+                color = (255, 144, 30) # Açık Mavi (BGR)
+                hud_label = f"FRIENDLY [{t['class']}]"
+                alert = "SAFE"
+            else:
+                color = (0, 0, 255) if t['dist'] < 20 else (0, 255, 255) # Çok yakınsa tam Kırmızı, değilse Sarı
+                hud_label = f"TGT-{t['id']} [{t['class']}]"
+                alert = "DANGER" if t['dist'] < 20 else "TRACKING"
+                
+            if no_move: color = (100, 100, 100) # Gridlendirilmiş gri ton
 
-        # Crosshair
-        cv2.line(cv_img, (cx - 20, cy), (cx + 20, cy), (0, 255, 0), 1)
-        cv2.line(cv_img, (cx, cy - 20), (cx, cy + 20), (0, 255, 0), 1)
+            # Köşe çerçeveleri oluşturma (Modern HUD stili)
+            length = 15
+            cv2.line(cv_img, (tx, ty), (tx + length, ty), color, 2)
+            cv2.line(cv_img, (tx, ty), (tx, ty + length), color, 2)
+            cv2.line(cv_img, (tx + tw, ty), (tx + tw - length, ty), color, 2)
+            cv2.line(cv_img, (tx + tw, ty), (tx + tw, ty + length), color, 2)
+            cv2.line(cv_img, (tx, ty + th), (tx, ty + th - length), color, 2)
+            cv2.line(cv_img, (tx, ty + th), (tx + length, ty + th), color, 2)
+            cv2.line(cv_img, (tx + tw, ty + th), (tx + tw, ty + th - length), color, 2)
+            cv2.line(cv_img, (tx + tw, ty + th), (tx + tw - length, ty + th), color, 2)
+            
+            # Mesafe ve Bilgi etiketleri
+            cv2.putText(cv_img, hud_label, (tx, ty - 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+            cv2.putText(cv_img, f"DIST: {t['dist']:.1f}m", (tx, ty - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 1, cv2.LINE_AA)
+            cv2.putText(cv_img, alert, (tx, ty + th + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2, cv2.LINE_AA)
+
+        # 4. Gelişmiş Crosshair & Açı Ölçer Vizörü
+        cv2.circle(cv_img, (cx, cy), 40, (0, 255, 0), 1, cv2.LINE_AA)
+        cv2.circle(cv_img, (cx, cy), 3, (0, 255, 0), -1)
+        
+        cv2.line(cv_img, (cx - 60, cy), (cx - 20, cy), (0, 255, 0), 2)
+        cv2.line(cv_img, (cx + 20, cy), (cx + 60, cy), (0, 255, 0), 2)
+        cv2.line(cv_img, (cx, cy - 60), (cx, cy - 20), (0, 255, 0), 2)
+        cv2.line(cv_img, (cx, cy + 20), (cx, cy + 60), (0, 255, 0), 2)
+
+        # Telemetri HUD
+        cv2.putText(cv_img, f"MODE: {'AUTONOMOUS' if self.turret_system.state.current_stage == 3 else 'MANUAL/TRACK'}", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2, cv2.LINE_AA)
         
     def convert_cv_qt(self, cv_img):
         rgb_image = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)

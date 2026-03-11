@@ -49,34 +49,38 @@ class MainWindow(QMainWindow):
     def __init__(self, turret_system):
         super().__init__()
         self.turret_system = turret_system
-        self.setWindowTitle("ALTAIR-C2 TACTICAL CONSOLE (v2.0)")
-        self.setMinimumSize(1100, 800)
+        self.setWindowTitle("ALTAIR TACTICAL INTERFACE - [CINEMATIC 8K HUD]")
+        self.setMinimumSize(1280, 800)
         
-        # Stil tanımlamaları
+        # Cyberpunk / Cinematic Askeri Stil tanımlamaları
         self.setStyleSheet("""
-            QMainWindow { background-color: #0a0a0a; }
+            QMainWindow { background-color: #050b14; }
             QGroupBox {
-                border: 1px solid #333; border-radius: 4px; margin-top: 2ex;
-                background-color: #111; color: #22c55e; font-weight: bold;
+                border: 1px solid #102a43; border-radius: 6px; margin-top: 2ex;
+                background-color: rgba(10, 20, 35, 0.8); color: #00ffcc; font-weight: 900;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             }
-            QGroupBox::title { subcontrol-origin: margin; padding: 0 3px; }
+            QGroupBox::title { subcontrol-origin: margin; padding: 0 5px; color: #00ffcc; }
             QPushButton {
-                background-color: #1f2937; border: 1px solid #22c55e; color: #22c55e;
-                padding: 8px; border-radius: 4px; font-weight: bold;
+                background-color: rgba(15, 30, 50, 0.9); border: 1px solid #00ffcc; color: #00ffcc;
+                padding: 10px; border-radius: 4px; font-weight: bold; letter-spacing: 1px;
             }
-            QPushButton:hover { background-color: #22c55e; color: #000; }
-            QListWidget { background-color: #050505; color: #22c55e; font-family: 'Consolas'; font-size: 10px; }
-            QLabel { color: #e5e7eb; }
-            QRadioButton { color: #22c55e; font-weight: bold; }
+            QPushButton:hover { background-color: #00ffcc; color: #000; }
+            QPushButton:checked { background-color: #00ffcc; color: #000; }
+            QListWidget { background-color: rgba(5, 10, 20, 0.9); color: #22c55e; font-family: 'Consolas'; font-size: 11px; border: 1px solid #102a43; }
+            QLabel { color: #829ab1; font-family: 'Segoe UI'; font-weight: 600; }
+            QRadioButton { color: #00ffcc; font-weight: bold; }
         """)
 
         central_widget = QWidget()
         main_layout = QHBoxLayout(central_widget)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(20)
         
         # --- SOL PANEL ---
         left_layout = QVBoxLayout()
-        self.header = QLabel("ALTAIR-C2 | MERKEZİ KARAR VE OPERASYON PANELİ")
-        self.header.setStyleSheet("color: #22c55e; font-size: 18px; font-weight: 800;")
+        self.header = QLabel("ALTAIR | COMMAND AND CONTROL - LIVE FEED")
+        self.header.setStyleSheet("color: #00ffcc; font-size: 20px; font-weight: 900; letter-spacing: 2px;")
         left_layout.addWidget(self.header)
         
         self.video_label = VideoLabel(self.turret_system)
@@ -101,12 +105,12 @@ class MainWindow(QMainWindow):
         # --- SAĞ PANEL ---
         right_layout = QVBoxLayout()
         
-        # 1. Sistem Aşaması (Dynamic Stage Management)
-        stage_group = QGroupBox("GÖREV AŞAMASI (ŞARTNAME MADDE 6)")
+        # 1. Sistem Aşaması
+        stage_group = QGroupBox("GÖREV AŞAMASI (STAGE MGMT)")
         stage_layout = QHBoxLayout(stage_group)
         self.stage_btns = QButtonGroup()
         for i in range(1, 4):
-            btn = QPushButton(f"AŞAMA-{i}")
+            btn = QPushButton(f"PHASE-{i}")
             btn.setCheckable(True)
             if i == 1: btn.setChecked(True)
             btn.clicked.connect(lambda checked, s=i: self.turret_system.set_stage(s))
@@ -115,23 +119,31 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(stage_group)
 
         # 2. Telemetri ve Gecikme
-        tele_group = QGroupBox("SİSTEM DURUMU")
+        tele_group = QGroupBox("SYSTEM HEALTH & TELEMETRY")
         tele_layout = QGridLayout(tele_group)
         self.lbl_coords = QLabel("COORD: P:0.0 T:0.0")
         self.lbl_latency = QLabel("LATENCY: 0ms")
         self.lbl_watchdog = QLabel("WATCHDOG: OK")
-        self.lbl_coords.setStyleSheet("font-family: monospace; color: #22c55e;")
-        self.lbl_latency.setStyleSheet("font-family: monospace;")
+        
+        # Dijital font ve parlaklık
+        font_style = "font-family: 'Consolas'; font-size: 14px; font-weight: bold; color: #00ffcc;"
+        self.lbl_coords.setStyleSheet(font_style)
+        self.lbl_latency.setStyleSheet("font-family: 'Consolas'; font-size: 14px; font-weight: bold; color: #22c55e;")
+        self.lbl_watchdog.setStyleSheet("font-family: 'Consolas'; font-size: 14px; font-weight: bold; color: #22c55e;")
+        
         tele_layout.addWidget(self.lbl_coords, 0, 0)
         tele_layout.addWidget(self.lbl_latency, 0, 1)
         tele_layout.addWidget(self.lbl_watchdog, 1, 0)
         right_layout.addWidget(tele_group)
 
         # 3. Kontroller
-        ctrl_group = QGroupBox("OPERASYONEL KONTROLLER")
+        ctrl_group = QGroupBox("TACTICAL OVERRIDE")
         ctrl_layout = QGridLayout(ctrl_group)
-        self.btn_fire = QPushButton("MANUEL ATEŞLEME")
-        self.btn_fire.setStyleSheet("background-color: #450a0a; color: #ef4444; border: 1px solid #ef4444;")
+        self.btn_fire = QPushButton("MANUAL FIRE [AUTHORIZED]")
+        self.btn_fire.setStyleSheet("""
+            QPushButton { background-color: rgba(60, 10, 10, 0.9); border: 2px solid #ff3333; color: #ff3333; font-size: 14px; }
+            QPushButton:hover { background-color: #ff3333; color: #ffffff; }
+        """)
         self.btn_fire.clicked.connect(self.turret_system.manual_fire)
         ctrl_layout.addWidget(self.btn_fire, 0, 0)
         right_layout.addWidget(ctrl_group)
@@ -141,8 +153,14 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(self.log_list)
 
         # 5. E-STOP
-        self.btn_estop = QPushButton("ACİL DURDURMA (E-STOP)")
-        self.btn_estop.setStyleSheet("background-color: #dc2626; color: white; padding: 15px;")
+        self.btn_estop = QPushButton("EMERGENCY STOP (E-STOP)")
+        self.btn_estop.setStyleSheet("""
+            QPushButton {
+                background-color: #ff0000; color: #000; padding: 20px; font-size: 18px; font-weight: 900;
+                border: 3px solid #880000; border-radius: 6px; letter-spacing: 2px;
+            }
+            QPushButton:hover { background-color: #cc0000; color: #fff; }
+        """)
         self.btn_estop.clicked.connect(self.handle_estop)
         right_layout.addWidget(self.btn_estop)
 
@@ -159,8 +177,8 @@ class MainWindow(QMainWindow):
     def update_frame(self, qt_img, latency):
         self.video_label.setPixmap(QPixmap.fromImage(qt_img))
         self.lbl_latency.setText(f"LATENCY: {latency:.1f}ms")
-        if latency > 50: self.lbl_latency.setStyleSheet("color: #ef4444;")
-        else: self.lbl_latency.setStyleSheet("color: #22c55e;")
+        if latency > 50: self.lbl_latency.setStyleSheet("font-family: 'Consolas'; font-size: 14px; font-weight: bold; color: #ff3333;")
+        else: self.lbl_latency.setStyleSheet("font-family: 'Consolas'; font-size: 14px; font-weight: bold; color: #22c55e;")
 
     def handle_target(self, t_class, t_id, distance, cx, cy, w, h, no_fire, no_move):
         # Hareket Filtreleme
