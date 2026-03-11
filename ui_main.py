@@ -15,8 +15,12 @@ class VideoLabel(QLabel):
         self.rubberBand = None
         self.origin = QPoint()
         self.current_zone_type = ZoneType.NO_MOVEMENT
+        
+        self.setMouseTracking(False)
         self.setStyleSheet("background-color: #0d1117; border: 2px solid #22c55e;")
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        # Görüntü sığsın diye scale izinleri
+        self.setScaledContents(False)
 
     def set_zone_type(self, z_type):
         self.current_zone_type = z_type
@@ -40,10 +44,21 @@ class VideoLabel(QLabel):
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton and self.rubberBand:
             rect = self.rubberBand.geometry()
-            if rect.width() > 10 and rect.height() > 10:
-                self.turret_system.state.no_go_zones.append((rect, self.current_zone_type))
-                self.turret_system.logger.log(f"Yeni {self.current_zone_type.name} Alanı Eklendi.", "WARNING")
             self.rubberBand.hide()
+            self.origin = QPoint()
+            
+            # Görüntü alanı dışında olan tıklamaları engellemek için sınırla
+            if rect.width() > 10 and rect.height() > 10:
+                # Video boyutlarına kırp
+                x = max(0, min(rect.x(), 640))
+                y = max(0, min(rect.y(), 480))
+                w = min(rect.width(), 640 - x)
+                h = min(rect.height(), 480 - y)
+                
+                if w > 10 and h > 10:
+                    real_rect = QRect(x, y, w, h)
+                    self.turret_system.state.no_go_zones.append((real_rect, self.current_zone_type))
+                    self.turret_system.logger.log(f"{self.current_zone_type.name} [{w}x{h}] Eklendi.", "WARNING")
 
 class MainWindow(QMainWindow):
     def __init__(self, turret_system):

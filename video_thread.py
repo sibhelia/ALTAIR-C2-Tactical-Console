@@ -85,7 +85,7 @@ class VideoThread(QThread):
         overlay = cv_img.copy()
         for i in range(0, w, 60): cv2.line(overlay, (i, 0), (i, h), (10, 40, 10), 1)
         for i in range(0, h, 60): cv2.line(overlay, (0, i), (w, i), (10, 40, 10), 1)
-        cv_img = cv2.addWeighted(overlay, 0.4, cv_img, 0.6, 0)
+        cv2.addWeighted(overlay, 0.4, cv_img, 0.6, 0, cv_img)
 
         # 2. Yasak Alanlar
         for zone, z_type in self.turret_system.state.no_go_zones:
@@ -95,7 +95,7 @@ class VideoThread(QThread):
             # Yarı saydam yasak alan doldurma
             blk = np.zeros(cv_img.shape, np.uint8)
             cv2.rectangle(blk, (zone.x(), zone.y()), (zone.x() + zone.width(), zone.y() + zone.height()), color, cv2.FILLED)
-            cv_img = cv2.addWeighted(cv_img, 1.0, blk, 0.2, 1)
+            cv2.addWeighted(blk, 0.2, cv_img, 1.0, 1, cv_img)
             
             cv2.rectangle(cv_img, (zone.x(), zone.y()), (zone.x() + zone.width(), zone.y() + zone.height()), color, 2)
             cv2.putText(cv_img, label, (zone.x() + 5, zone.y() + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
